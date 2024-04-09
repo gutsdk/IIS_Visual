@@ -161,7 +161,8 @@ namespace IIS_Visual
                     break;
                 case 2://   3-ий участок 30-42
                     It = MonteCarloDoubleIntegral(zValues[_counterZ], xLow, xHigh);
-                    //todo
+                    //It += MonteCarloDoubleIntegral();
+                    //It += MonteCarloDoubleIntegral();
                     break;
                 case 3://   4-ый участок 42-50
                     It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h2, xLow, xHigh);
