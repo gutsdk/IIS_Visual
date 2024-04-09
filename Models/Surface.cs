@@ -9,12 +9,12 @@ namespace IIS_Visual.Models
     public class Surface
     {
         private ChartValues<ObservablePoint> surfaceDataPoints = new ChartValues<ObservablePoint> { 
-            new ObservablePoint(0, 0), new ObservablePoint(15, 0), new ObservablePoint(15, 8), new ObservablePoint(30, 8),
-            new ObservablePoint(30, 0), new ObservablePoint(35, 0), new ObservablePoint(44, 5), new ObservablePoint(50, 5)};
+            new ObservablePoint(0, 0), new ObservablePoint(20, 0), new ObservablePoint(20, 8), new ObservablePoint(35, 8),
+            new ObservablePoint(35, 0), new ObservablePoint(40, 0), new ObservablePoint(49, 5), new ObservablePoint(55, 5)};
         public SolidColorBrush surfaceColor = Brushes.Gray;
         public double U = 0.010;
         public double Ef = 5.710;
-        public double k = 1;
+        public double k = 1.0;
         public double phi0 = 4.50;
         public int d1 = 15, d2 = 5, h1 = 8, h2 = 5;
         public ChartValues<ObservablePoint> ReadSurfaceDataPointsFromFile()
@@ -26,12 +26,13 @@ namespace IIS_Visual.Models
         {
             return surfaceDataPoints;
         }
+
         public int CurrentSurfacePart(int _currentX)
         {
             int partNumber = 0;
             for(var point = 0; point < surfaceDataPoints.Count; point++)
             {
-                if (_currentX <= surfaceDataPoints[point].X)
+                if (_currentX < surfaceDataPoints[point].X)
                 {
                     partNumber = point;
                     break;

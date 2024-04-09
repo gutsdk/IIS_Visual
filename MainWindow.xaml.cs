@@ -22,12 +22,12 @@ namespace IIS_Visual
         public Random _random = new Random();
 
         public int xLow = -5;
-        public static int size = 60;
         public int xHigh = 5;
         public double yH = 5;
         public double yL = -5;
         public int numPoints = 5000;
-        public List<double> zValues = new List<double>(size);
+        public int size = 100;
+        public List<double> zValues = new List<double>();
         public double delta = 1e-5;
         public double refCurrent;
 
@@ -38,16 +38,16 @@ namespace IIS_Visual
             Axis zAxis = new Axis
             {
                 Title = "Ось Z",
-                MaxValue = _needle.Zo * 2, 
+                MaxValue = _needle.Zo * 3, 
                 MinValue = 0,
-                Separator = new Separator { Step = 0.5 },
+                Separator = new Separator { Step = 1 },
                 Position = AxisPosition.LeftBottom
             };
             Axis yAxis = new Axis
             {
                 Title = "Ось X",
                 MinValue = 0,
-                MaxValue = 50,
+                MaxValue = _surface.GetPoints().Last().X,
                 Separator = new Separator { Step = 1 },
                 Position = AxisPosition.LeftBottom
             };
@@ -84,7 +84,7 @@ namespace IIS_Visual
 
             seriesCollection[0].Values.AddRange(_surface.GetPoints());
 
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) }; // каждые X секунд добавляется новое значение на график
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) }; // каждые X секунд добавляется новое значение на график
             _timer.Tick += TimerTick;
         }
         protected override void OnContentRendered(EventArgs e)
@@ -94,19 +94,14 @@ namespace IIS_Visual
         }
         private void TimerTick(object sender, EventArgs e)
         {
-            (seriesCollection[1]).Values.Add(new ObservablePoint(_counterX, zValues[_counterZ]));
-
-            _counterZ++;
-
-            if (_counterX > 50)
+            if (_counterX >= _surface.GetPoints().Last().X)
             {
-                //seriesCollection[1].Values.RemoveAt(0); // очищаем предыдущее значение или
                 _timer.Stop(); // останавливаем таймер
             }
             else
             {
                 double _currentJ = CalculateCurrents(_surface, _counterX);
-                while (Math.Abs(1.0 - _currentJ / refCurrent) >= 0.10) // 10% диапазон доверия
+                while (Math.Abs(1.0 - _currentJ / refCurrent) >= 0.10) // n% диапазон доверия
                 {
                     if (_currentJ > refCurrent)
                     {
@@ -118,16 +113,18 @@ namespace IIS_Visual
                     }
                     _currentJ = CalculateCurrents(_surface, _counterX);
                 }
+                (seriesCollection[1]).Values.Add(new ObservablePoint(_counterX, zValues[_counterZ]));
             }
-            _counterX++;
+            zValues[_counterZ + 1] = zValues[_counterZ];
+            _counterX++; _counterZ++;
         }
         private double CalculateCurrent(double x, double y, double Zi, Surface surface)
         {
             double Z = Math.Sqrt(Zi + Math.Pow(x, 2) + Math.Pow(y, 2));
             double S1 = 3 / (surface.k * surface.phi0);
-            double S2 = Z * (1 - (23 / (3 * surface.phi0 * surface.k * Z + 10 - 2 * surface.U * surface.k * Z))) + S1;
-            double phi = surface.phi0 - ((surface.U * (S1 + S2)) / (2 * Z)) - (2.86 / (surface.k * (S2 - S1))) * Math.Log((S2 * (Z - S1)) / (S1 * (Z - S2)));
-            return 1620 * surface.U * surface.Ef * Math.Exp(-1.025 * Z * Math.Sqrt(Math.Abs(phi)));
+            double S2 = Zi * (1 - (23 / (3 * surface.phi0 * surface.k * Zi + 10 - 2 * surface.U * surface.k * Zi))) + S1;
+            double phi = surface.phi0 - ((surface.U * (S1 + S2)) / (2 * Zi)) - (2.86 / (surface.k * (S2 - S1))) * Math.Log((S2 * (Zi - S1)) / (S1 * (Zi - S2)));
+            return 1620 * surface.U * surface.Ef * Math.Exp(-1.0250 * Z * Math.Sqrt(phi));
         }
         private double MonteCarloDoubleIntegral(double Zi, int xL, int xH)
         {
@@ -152,19 +149,21 @@ namespace IIS_Visual
             double It;
             switch (currentSurface)
             {
-                case 0://   1-ый участок 0-10
+                case 0://   1-ый участок 0-19
                     It = MonteCarloDoubleIntegral(zValues[_counterZ], xLow, xHigh);
-                    It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(surface.d1 - _currentX, 2)), 0, surface.h1);
+                    It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[1].X - _currentX, 2)), 0, surface.h1);
+                    if (_surface.GetPoints()[1].X - _currentX <= _needle.radius && _surface.GetPoints()[1].X - _currentX > 0)
+                        It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[1].X - _currentX + _needle.radius, 2)), xLow, xHigh);
                     break;
-                case 1://   2-ой участок 10-30
+                case 1://   2-ой участок 20-34
                     It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h1, xLow, xHigh);
                     break;
-                case 2://   3-ий участок 30-42
+                case 2://   3-ий участок 35-49 // todo
                     It = MonteCarloDoubleIntegral(zValues[_counterZ], xLow, xHigh);
                     //It += MonteCarloDoubleIntegral();
                     //It += MonteCarloDoubleIntegral();
                     break;
-                case 3://   4-ый участок 42-50
+                case 3://   4-ый участок 50-55
                     It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h2, xLow, xHigh);
                     break;
                 default:
