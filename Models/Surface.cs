@@ -10,10 +10,7 @@ namespace IIS_Visual.Models
     {
         private ChartValues<ObservablePoint> surfaceDataPoints = new ChartValues<ObservablePoint> {
             new ObservablePoint(0, 0), new ObservablePoint(20, 0), new ObservablePoint(20, 8), new ObservablePoint(35, 8),
-            new ObservablePoint(35, 0), new ObservablePoint(40, 0), new ObservablePoint(49, 5), new ObservablePoint(55, 5)};
-        private ChartValues<ObservablePoint> surfaceDataPointsX = new ChartValues<ObservablePoint> {
-            new ObservablePoint(0, 0), new ObservablePoint(20, 0), new ObservablePoint(35, 0), new ObservablePoint(40, 0),
-            new ObservablePoint(49, 5), new ObservablePoint(55, 5)};
+            new ObservablePoint(35, 0), new ObservablePoint(40, 0), new ObservablePoint(48, 5), new ObservablePoint(55, 5)};
         public SolidColorBrush surfaceColor = Brushes.Gray;
         public double U = 0.010;
         public double Ef = 5.710;
@@ -31,36 +28,69 @@ namespace IIS_Visual.Models
         }
         public int CurrentSurfacePart(int _currentX)
         {
-            int partNumber = 0;
-            for (var point = 0; point < surfaceDataPointsX.Count - 1; point++)
+            int part = 0;
+            for (int i = 0; i < surfaceDataPoints.Count - 1; i++)
             {
-                if (surfaceDataPointsX[point + 1].X - surfaceDataPointsX[point].X > _currentX - surfaceDataPointsX[point].X)
+                double x1 = surfaceDataPoints[i].X;
+                double y1 = surfaceDataPoints[i].Y;
+
+                double x2 = surfaceDataPoints[i + 1].X;
+                double y2 = surfaceDataPoints[i + 1].Y;
+
+                if (y2 > y1)
                 {
-                    partNumber = point + 1;
-                    break;
+                // Если есть возвышение, то проверяем, находится ли точка выше линии между опорными точками
+                    double interpolatedY = y1 + (_currentX - x1) * (y2 - y1) / (x2 - x1);
+                    if (_currentX >= x1 && _currentX <= x2 && interpolatedY <= y2)
+                    {
+                        part = i + 1;     
+                    }
+                }
+                else if (y2 < y1)
+                {
+                    // Если есть спуск, то проверяем, находится ли точка ниже линии между опорными точками
+                    double interpolatedY = y1 + (_currentX - x1) * (y2 - y1) / (x2 - x1);
+                    if (_currentX >= x1 && _currentX <= x2 && interpolatedY >= y2)
+                    {
+                        part = i + 1;
+                    }
+                }
+                else
+                {
+                    // Если y1 == y2, это плоский участок, и мы проверяем, принадлежит ли точка этому участку
+                    if (_currentX >= x1 && _currentX <= x2)
+                    {
+                        part = i + 1;
+                    }
                 }
             }
 
-            switch (partNumber)
+            switch (part)
             {
                 case 1:
-                    partNumber = 0;
+                    part = 1;
                     break;
                 case 2:
-                    partNumber = 1;
+                    part = 1;
                     break;
                 case 3:
-                    partNumber = 2;
+                    part = 2;
                     break;
                 case 4:
-                    partNumber = 2;
+                    part = 2;
                     break;
                 case 5:
-                    partNumber = 3;
+                    part = 3;
+                    break;
+                case 6:
+                    part = 3;
+                    break;
+                case 7:
+                    part = 4;
                     break;
             }
 
-            return partNumber;
+            return part;
         }
     }
 }
