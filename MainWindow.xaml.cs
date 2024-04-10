@@ -151,17 +151,18 @@ namespace IIS_Visual
             {
                 case 0://   1-ый участок 0-19
                     It = MonteCarloDoubleIntegral(zValues[_counterZ], xLow, xHigh);
-                    It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[1].X - _currentX, 2)), 0, surface.h1);
-                    if (_surface.GetPoints()[1].X - _currentX <= _needle.radius && _surface.GetPoints()[1].X - _currentX > 0)
-                        It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[1].X - _currentX + _needle.radius, 2)), xLow, xHigh);
+                    It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[currentSurface + 1].X - _currentX, 2)), 0, surface.h1);
+                    if (_surface.GetPoints()[currentSurface + 1].X - _currentX <= _needle.radius && _surface.GetPoints()[currentSurface + 1].X - _currentX > 0)
+                        It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[currentSurface + 1].X - _currentX + _needle.radius, 2)), xLow, xHigh);
                     break;
-                case 1://   2-ой участок 20-34
+                case 1://   2-ой участок 20-35
                     It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h1, xLow, xHigh);
                     break;
-                case 2://   3-ий участок 35-49 // todo
+                case 2://   3-ий участок 36-49 // todo
                     It = MonteCarloDoubleIntegral(zValues[_counterZ], xLow, xHigh);
-                    //It += MonteCarloDoubleIntegral();
-                    //It += MonteCarloDoubleIntegral();
+                    It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h2, 2) + Math.Pow(_surface.GetPoints()[_surface.GetPoints().Count - currentSurface].X - _currentX, 2)), xLow, xHigh);
+                    if (Math.Abs(_surface.GetPoints()[_surface.GetPoints().Count - currentSurface * 2].X - _currentX) <= _needle.radius && Math.Abs(_surface.GetPoints()[_surface.GetPoints().Count - currentSurface * 2].X - _currentX) > 0)
+                        It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(Math.Abs(_surface.GetPoints()[_surface.GetPoints().Count - currentSurface * 2].X - _currentX) + _needle.radius, 2)), xLow, xHigh);
                     break;
                 case 3://   4-ый участок 50-55
                     It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h2, xLow, xHigh);
