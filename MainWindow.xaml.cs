@@ -21,10 +21,10 @@ namespace IIS_Visual
         public Needle _needle = new Needle();
         public Random _random = new Random();
 
-        public int xLow = -5;
-        public int xHigh = 5;
-        public double yH = 5;
-        public double yL = -5;
+        public int xLow = -10;
+        public int xHigh = 10;
+        public double yH = 10;
+        public double yL = -10;
         public int numPoints = 5000;
         public int size = 100;
         public List<double> zValues = new List<double>();
