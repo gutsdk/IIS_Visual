@@ -25,7 +25,7 @@ namespace IIS_Visual
         public int xHigh = 10;
         public double yH = 10;
         public double yL = -10;
-        public int numPoints = 5000;
+        public int numPoints = 100000;
         public int size = 100;
         public List<double> zValues = new List<double>();
         public double refCurrent;
@@ -159,7 +159,7 @@ namespace IIS_Visual
                     case 2://   2-ой участок 20-34
                         It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h1, xLow, xHigh);
                         break;
-                    case 3://   3-ий участок 35-47 todo
+                    case 3://   3-ий участок 35-47
                         if (_surface.GetPoints()[_surface.GetPoints().Count - (currentSurface + 1)].X - _currentX < 0)
                         {
                             It = MonteCarloDoubleIntegral(zValues[_counterZ], xLow, xHigh);
