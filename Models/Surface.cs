@@ -60,7 +60,7 @@ namespace IIS_Visual.Models
                 }
                 else
                 {
-                    for (double x = startX + 1; x < endX; x++)
+                    for (double x = startX + 0.1; x < endX; x++)
                     {
                         double z = InterpolateZ(startX, startZ, endX, endZ, x);
                         points.Add(new ObservablePoint(x, z));
@@ -114,7 +114,6 @@ namespace IIS_Visual.Models
         {
             double pointX = point.X;
             double pointZ = point.Y;
-            bool inside = false;
 
             double vertex1X = surfacePoints[0].X;
             double vertex1Z = surfacePoints[0].Y;
@@ -123,11 +122,25 @@ namespace IIS_Visual.Models
 
             if (pointX == vertex2X && pointZ == vertex2Z) { return false; }
 
-            if ((pointX < vertex2X && pointX >= vertex1X) || (pointZ < vertex2Z && pointZ >= vertex1Z)) { return true; }
+            // Проверяем, является ли линия горизонтальной
+            if (vertex1Z == vertex2Z)
+            {
+                return pointZ == vertex1Z && (pointX >= Math.Min(vertex1X, vertex2X) && pointX <= Math.Max(vertex1X, vertex2X));
+            }
 
-            if ((pointX < vertex2X && pointX >= vertex1X) || (pointZ > vertex2Z && pointZ <= vertex1Z)) { return true; }
+            // Проверяем, является ли линия вертикальной
+            if (vertex1X == vertex2X)
+            {
+                return pointX == vertex1X && (pointZ >= Math.Min(vertex1Z, vertex2Z) && pointZ <= Math.Max(vertex1Z, vertex2Z));
+            }
 
-            return inside;
+            // Вычисляем параметры t для каждой координаты
+            double tX = (pointX - vertex1X) / (vertex2X - vertex1X);
+            double tZ = (pointZ - vertex1Z) / (vertex2Z - vertex1Z);
+
+            // Проверяем, равны ли параметры t для каждой координаты с некоторой погрешностью,
+            // чтобы учесть возможные числовые неточности при вычислениях
+            return Math.Abs(tX - tZ) < double.Epsilon;
         }
     }
 }
