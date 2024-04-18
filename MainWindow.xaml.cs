@@ -180,7 +180,7 @@ namespace IIS_Visual
                             if (_currentX >= _surface.surfaceDataPoints[surfaceIndex].X)
                             {
                                 double I4 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow((zValues[_counterZ] - _surface.h1) + _surface.h1 * 0.5, 2)
-                                + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), _surface.h1, 0);
+                                + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), 0, _surface.h1);
                                 It += I4;
                             }
                             break;
