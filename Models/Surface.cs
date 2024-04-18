@@ -3,6 +3,11 @@ using LiveCharts.Defaults;
 using System;
 using System.Collections.Generic;
 using System.Windows.Media;
+using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.LinearRegression;
+using MathNet.Numerics;
+using System.Windows.Markup;
+using System.Linq;
 
 namespace IIS_Visual.Models
 {
@@ -62,6 +67,7 @@ namespace IIS_Visual.Models
                     }
                 }
             }
+
         }
         public ChartValues<ObservablePoint> GetPoints()
         {
@@ -104,9 +110,8 @@ namespace IIS_Visual.Models
             }
             return 0;
         }
-        private static bool IsPointOnSurface(ObservablePoint point, ChartValues<ObservablePoint> surfacePoints)
+        private static bool IsPointOnSurface(ObservablePoint point, ChartValues<ObservablePoint> surfacePoints) // todo
         {
-            int polygonLength = surfacePoints.Count;
             double pointX = point.X;
             double pointZ = point.Y;
             bool inside = false;
@@ -118,7 +123,9 @@ namespace IIS_Visual.Models
 
             if (pointX == vertex2X && pointZ == vertex2Z) { return false; }
 
-            if ((pointX < vertex2X && pointX >= vertex1X) || (pointZ < vertex2Z && pointZ >= vertex1Z) || (pointZ > vertex2Z && pointZ <= vertex1Z)) { return true; }
+            if ((pointX < vertex2X && pointX >= vertex1X) || (pointZ < vertex2Z && pointZ >= vertex1Z)) { return true; }
+
+            if ((pointX < vertex2X && pointX >= vertex1X) || (pointZ > vertex2Z && pointZ <= vertex1Z)) { return true; }
 
             return inside;
         }
