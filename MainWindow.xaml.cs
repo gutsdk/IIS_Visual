@@ -18,25 +18,25 @@ namespace IIS_Visual
         private int _counterX = 0;
         private int _counterZ = 0;
         public Surface _surface = new Surface();
-        public Needle _needle = new Needle();
+        public Needle _needle = new Needle(2);
         public Random _random = new Random();
 
-        public int xLow = -10;
-        public int xHigh = 10;
-        public double yH = 10;
-        public double yL = -10;
-        public int numPoints = 100000;
+        public double xMax = 10;
+        public double yMax = 10;
+        public int numPoints = 10000;
         public int size = 100;
-        public List<double> zValues = new List<double>();
+        public List<double> zValues;
         public double refCurrent;
+        public ObservablePoint lastPoint;
         public MainWindow()
         {
             InitializeComponent();
+            lastPoint = _surface.GetPoints().Last();
 
             Axis zAxis = new Axis
             {
                 Title = "Ось Z",
-                MaxValue = _needle.Zo * 3, 
+                MaxValue = 30, 
                 MinValue = 0,
                 Separator = new Separator { Step = 1 },
                 Position = AxisPosition.LeftBottom
@@ -45,7 +45,7 @@ namespace IIS_Visual
             {
                 Title = "Ось X",
                 MinValue = 0,
-                MaxValue = _surface.GetPoints().Last().X,
+                MaxValue = lastPoint.X,
                 Separator = new Separator { Step = 1 },
                 Position = AxisPosition.LeftBottom
             };
@@ -75,14 +75,14 @@ namespace IIS_Visual
 
             DataContext = this;
 
-            for (int i = 0; i < size; i++)
-                zValues.Add(_needle.Zo);
+            zValues = new List<double>(new double[size]);
+            zValues[_counterZ] = _needle.Zo;
 
-            refCurrent = MonteCarloDoubleIntegral(zValues[0], xLow, xHigh);
+            refCurrent = MonteCarloDoubleIntegral(_needle.Zo, -xMax, xMax);
 
             seriesCollection[0].Values.AddRange(_surface.GetPoints());
 
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) }; // каждые X секунд добавляется новое значение на график
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) }; // каждые X миллисекунд добавляется новое значение на график
             _timer.Tick += TimerTick;
         }
         protected override void OnContentRendered(EventArgs e)
@@ -92,7 +92,7 @@ namespace IIS_Visual
         }
         private void TimerTick(object sender, EventArgs e)
         {
-            if (_counterX > _surface.GetPoints().Last().X)
+            if (_counterX > lastPoint.X)
             {
                 _timer.Stop(); // останавливаем таймер
             }
@@ -124,64 +124,82 @@ namespace IIS_Visual
             double phi = surface.phi0 - ((surface.U * (S1 + S2)) / (2 * Zi)) - (2.86 / (surface.k * (S2 - S1))) * Math.Log((S2 * (Zi - S1)) / (S1 * (Zi - S2)));
             return 1620 * surface.U * surface.Ef * Math.Exp(-1.0250 * Z * Math.Sqrt(phi));
         }
-        private double MonteCarloDoubleIntegral(double Zi, int xL, int xH)
+        private double MonteCarloDoubleIntegral(double Zi, double xL, double xH)
         {
             double integral = 0.0;
             double x, y;
             for (int i = 0; i < numPoints; i++)
             {
                 x = xL + (xH - xL) * _random.NextDouble();
-                y = yL + (yH - yL) * _random.NextDouble();
+                y = -yMax + (yMax - (-yMax)) * _random.NextDouble();
                 integral += CalculateCurrent(x, y, Zi, _surface); 
             }
 
-            double area = (xH - xL) * (yH - yL); // площадь прямоугольника
+            double area = (xH - xL) * (yMax - (-yMax)); // площадь прямоугольника
             integral *= area / numPoints; // вычисление приближенного значения интеграла
 
             return integral;
         }
-        private double CalculateCurrents(Surface surface, int _currentX)
+        private double CalculateCurrents(Surface surface, int _currentX) //todo
         {
             try
             {
-                int currentSurface = surface.CurrentSurfacePart(_currentX);
-
-                double It;
-                switch (currentSurface)
+                double It = 0;
+                var set = _surface.CurrentSurfaces(_currentX, zValues[_counterZ], _needle.radius);
+                
+                foreach (var surfaceIndex in set)
                 {
-                    case 1://   1-ый участок 0-19
-                        It = MonteCarloDoubleIntegral(zValues[_counterZ], xLow, xHigh);
-                        It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[currentSurface].X - _currentX, 2)), 0, surface.h1);
-
-                        if (_surface.GetPoints()[currentSurface].X - _currentX <= _needle.radius)
-                            It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[currentSurface].X - _currentX + _needle.radius, 2)), xLow, xHigh);
-                        break;
-                    case 2://   2-ой участок 20-34
-                        It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h1, xLow, xHigh);
-                        break;
-                    case 3://   3-ий участок 35-47
-                        if (_surface.GetPoints()[_surface.GetPoints().Count - (currentSurface + 1)].X - _currentX < 0)
-                        {
-                            It = MonteCarloDoubleIntegral(zValues[_counterZ], xLow, xHigh);
-                            It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h2, 2) + Math.Pow(_surface.GetPoints()[_surface.GetPoints().Count - currentSurface + 1].X - _currentX, 2)), xLow, xHigh);
-
-                            if (Math.Abs(_surface.GetPoints()[currentSurface].X - _currentX) <= _needle.radius)
+                    switch (surfaceIndex)
+                    {
+                        case 1:
+                            double I1 = MonteCarloDoubleIntegral(zValues[_counterZ], -xMax, xMax);
+                            It += I1;
+                            break;
+                        case 2:
+                            if (_currentX <= _surface.surfaceDataPoints[surfaceIndex].X)
                             {
-                                It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[_surface.GetPoints().Count - (currentSurface + 1)].X - _currentX, 2)), surface.h1, 0);
-                                It += MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2) + Math.Pow(_surface.GetPoints()[_surface.GetPoints().Count - (currentSurface + 1)].X - _currentX, 2)), xLow, xHigh);
+                                double I2 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow((zValues[_counterZ] - _surface.h1) + _surface.h1 * 0.5, 2)
+                                + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), 0, _surface.h1);
+                                It += I2;
                             }
-                        }
-                        else
-                        {
-                            It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h1, xLow, xHigh);
-                        }
-                        break;
-                    case 4://   4-ый участок 48-55
-                        It = MonteCarloDoubleIntegral(zValues[_counterZ] - surface.h2, xLow, xHigh);
-                        break;
-                    default:
-                        throw new Exception("Неожиданный/необработанный случай, лол. Вот сиди и думай головой"); 
+                            break;
+                        case 3:
+                            if (_currentX >= _surface.surfaceDataPoints[surfaceIndex - 1].X)
+                            {
+                                double I3 = MonteCarloDoubleIntegral(zValues[_counterZ] - _surface.h1, -xMax, xMax);
+                                It += I3;
+                            }
+                            else
+                            {
+                                double I3 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow((zValues[_counterZ] - _surface.h1), 2)
+                                + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), -xMax, xMax);
+                                It += I3;
+                            }
+                            break;
+                        case 4:
+                            if (_currentX >= _surface.surfaceDataPoints[surfaceIndex].X)
+                            {
+                                double I4 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow((zValues[_counterZ] - _surface.h1) + _surface.h1 * 0.5, 2)
+                                + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), _surface.h1, 0);
+                                It += I4;
+                            }
+                            break;
+                        case 5:
+                            double I5 = MonteCarloDoubleIntegral(zValues[_counterZ], -xMax, xMax);
+                            It += I5;
+                            break;
+                        case 6:
+                            double I6 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow((zValues[_counterZ] - _surface.h2) + _surface.h2 * 0.5, 2)
+                                + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex].X, 2)), -xMax, xMax);
+                            It += I6;
+                            break;
+                        case 7:
+                            double I7 = MonteCarloDoubleIntegral(zValues[_counterZ] - _surface.h2, -xMax, xMax);
+                            It += I7;
+                            break;
+                    }
                 }
+
                 return It;
             }
             catch (Exception e)

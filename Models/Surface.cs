@@ -8,89 +8,119 @@ namespace IIS_Visual.Models
 {
     public class Surface
     {
-        private ChartValues<ObservablePoint> surfaceDataPoints = new ChartValues<ObservablePoint> {
+        public ChartValues<ObservablePoint> surfaceDataPoints = new ChartValues<ObservablePoint> {
             new ObservablePoint(0, 0), new ObservablePoint(20, 0), new ObservablePoint(20, 8), new ObservablePoint(35, 8),
             new ObservablePoint(35, 0), new ObservablePoint(40, 0), new ObservablePoint(48, 5), new ObservablePoint(55, 5)};
+        private Dictionary<int, ChartValues<ObservablePoint>> surfaces = new Dictionary<int, ChartValues<ObservablePoint>>();
+        private ChartValues<ObservablePoint> points = new ChartValues<ObservablePoint>();
         public SolidColorBrush surfaceColor = Brushes.Gray;
         public double U = 0.010;
         public double Ef = 5.710;
         public double k = 1.0;
         public double phi0 = 4.50;
         public int d1 = 15, d2 = 5, h1 = 8, h2 = 5;
-        public ChartValues<ObservablePoint> ReadSurfaceDataPointsFromFile() // если надо сделать универсальную реализацию
+
+        public Surface()
         {
-            // необходимо реализовать функцию открытия файла .csv в котором хранятся значения поверхности 
-            return surfaceDataPoints;// по умолчанию значения
-        }
-        public ChartValues<ObservablePoint> GetPoints()
-        {
-            return surfaceDataPoints;
-        }
-        public int CurrentSurfacePart(int _currentX)
-        {
-            int part = 0;
             for (int i = 0; i < surfaceDataPoints.Count - 1; i++)
             {
-                double x1 = surfaceDataPoints[i].X;
-                double y1 = surfaceDataPoints[i].Y;
+                surfaces.Add(i + 1, new ChartValues<ObservablePoint> { surfaceDataPoints[i], surfaceDataPoints[i + 1] });
+            }
 
-                double x2 = surfaceDataPoints[i + 1].X;
-                double y2 = surfaceDataPoints[i + 1].Y;
+            foreach (var surfacePoints in surfaces.Values)
+            {
+                double startX = surfacePoints[0].X;
+                double startZ = surfacePoints[0].Y;
+                double endX = surfacePoints[1].X;
+                double endZ = surfacePoints[1].Y;
 
-                if (y2 > y1)
+                points.Add(new ObservablePoint(startX, startZ));
+
+                if (startX == endX)
                 {
-                // Если есть возвышение, то проверяем, находится ли точка выше линии между опорными точками
-                    double interpolatedY = y1 + (_currentX - x1) * (y2 - y1) / (x2 - x1);
-                    if (_currentX >= x1 && _currentX <= x2 && interpolatedY <= y2)
+                    if (startZ < endZ)
                     {
-                        part = i + 1;     
-                    }
-                }
-                else if (y2 < y1)
-                {
-                    // Если есть спуск, то проверяем, находится ли точка ниже линии между опорными точками
-                    double interpolatedY = y1 + (_currentX - x1) * (y2 - y1) / (x2 - x1);
-                    if (_currentX >= x1 && _currentX <= x2 && interpolatedY >= y2)
+                        for (double z = startZ + 1; z < endZ; z++)
+                        {
+                            points.Add(new ObservablePoint(startX, z));
+                        }
+                    } 
+                    else
                     {
-                        part = i + 1;
+                        for (double z = startZ - 1; z > endZ; z--)
+                        {
+                            points.Add(new ObservablePoint(startX, z));
+                        }
                     }
                 }
                 else
                 {
-                    // Если y1 == y2, это плоский участок, и мы проверяем, принадлежит ли точка этому участку
-                    if (_currentX >= x1 && _currentX <= x2)
+                    for (double x = startX + 1; x < endX; x++)
                     {
-                        part = i + 1;
+                        double z = InterpolateZ(startX, startZ, endX, endZ, x);
+                        points.Add(new ObservablePoint(x, z));
                     }
                 }
             }
+        }
+        public ChartValues<ObservablePoint> GetPoints()
+        {
+            return points;
+        }
+        public HashSet<int> CurrentSurfaces(double X, double Z, double R)
+        {
+            HashSet<int> result = new HashSet<int>();
 
-            switch (part)
+            foreach (var point in points) 
             {
-                case 1:
-                    part = 1;
-                    break;
-                case 2:
-                    part = 1;
-                    break;
-                case 3:
-                    part = 2;
-                    break;
-                case 4:
-                    part = 2;
-                    break;
-                case 5:
-                    part = 3;
-                    break;
-                case 6:
-                    part = 3;
-                    break;
-                case 7:
-                    part = 4;
-                    break;
+                double pointX = point.X;
+                double pointZ = point.Y;
+
+                double distance = Math.Sqrt(Math.Pow(pointX - X, 2) + Math.Pow(pointZ - Z, 2));
+
+                if (distance <= R)
+                {
+                    int surface = DetermineSurface(point, surfaces);
+
+                    result.Add(surface);
+                }
             }
 
-            return part;
+            return result;
+        }
+        private double InterpolateZ(double startX, double startZ, double endX, double endZ, double x)
+        {
+            double slope = (endZ - startZ) / (endX - startX);
+            return startZ + slope * (x - startX);
+        }
+        private int DetermineSurface(ObservablePoint point, Dictionary<int, ChartValues<ObservablePoint>> surfaces)
+        {
+            foreach (var surface in surfaces)
+            {
+                if (IsPointOnSurface(point, surface.Value))
+                {
+                    return surface.Key;
+                }
+            }
+            return 0;
+        }
+        private static bool IsPointOnSurface(ObservablePoint point, ChartValues<ObservablePoint> surfacePoints)
+        {
+            int polygonLength = surfacePoints.Count;
+            double pointX = point.X;
+            double pointZ = point.Y;
+            bool inside = false;
+
+            double vertex1X = surfacePoints[0].X;
+            double vertex1Z = surfacePoints[0].Y;
+            double vertex2X = surfacePoints[1].X;
+            double vertex2Z = surfacePoints[1].Y;
+
+            if (pointX == vertex2X && pointZ == vertex2Z) { return false; }
+
+            if ((pointX < vertex2X && pointX >= vertex1X) || (pointZ < vertex2Z && pointZ >= vertex1Z) || (pointZ > vertex2Z && pointZ <= vertex1Z)) { return true; }
+
+            return inside;
         }
     }
 }

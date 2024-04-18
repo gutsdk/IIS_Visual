@@ -6,6 +6,10 @@ namespace IIS_Visual.Models
     {
         public double Zo = 10.0;
         public double step = 0.10;
-        public double radius = 8.0;
+        public double radius;
+        public Needle(double offset) 
+        {
+            radius = Zo + offset;
+        }
     }
 }
