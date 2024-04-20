@@ -25,7 +25,7 @@ namespace IIS_Visual.Models
         public double phi0 = 4.50;
         public int d1 = 15, d2 = 5, h1 = 8, h2 = 5;
 
-        public Surface()
+        public Surface(double xStep)
         {
             for (int i = 0; i < surfaceDataPoints.Count - 1; i++)
             {
@@ -60,7 +60,7 @@ namespace IIS_Visual.Models
                 }
                 else
                 {
-                    for (double x = startX + 0.1; x < endX; x++)
+                    for (double x = startX + xStep; x < endX; x++)
                     {
                         double z = InterpolateZ(startX, startZ, endX, endZ, x);
                         points.Add(new ObservablePoint(x, z));

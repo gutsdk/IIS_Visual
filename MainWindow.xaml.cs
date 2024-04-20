@@ -5,6 +5,7 @@ using LiveCharts.Wpf;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Policy;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -17,10 +18,11 @@ namespace IIS_Visual
         private readonly DispatcherTimer _timer;
         private double _counterX = 0;
         private int _counterZ = 0;
-        public Surface _surface = new Surface();
-        public Needle _needle = new Needle(5);
+        public Surface _surface = new Surface(0.1);
+        public Needle _needle = new Needle(7, 3);
         public Random _random = new Random();
 
+        public double step = 0.1;
         public double xMax = 5;
         public double yMax = 5;
         public int numPoints = 5000;
@@ -114,13 +116,13 @@ namespace IIS_Visual
                 (seriesCollection[1]).Values.Add(new ObservablePoint(_counterX, zValues[_counterZ]));
             }
             zValues[_counterZ + 1] = zValues[_counterZ];
-            _counterX += 0.1; _counterZ++;
+            _counterX += step; _counterZ++;
         }
         private double CalculateCurrent(double x, double y, double Zi, Surface surface)
         {
             double Z = Math.Sqrt(Math.Pow(Zi, 2) + Math.Pow(x, 2) + Math.Pow(y, 2));
             double S1 = 3 / (surface.k * surface.phi0);
-            double S2 = Z * (1 - (23 / (3 * surface.phi0 * surface.k * Z + 10 - 2 * surface.U * surface.k * Z))) + S1;
+            double S2 = Z * (1 - 23 / (3 * surface.phi0 * surface.k * Z + 10 - 2 * surface.U * surface.k * Z)) + S1;
             double phi = surface.phi0 - ((surface.U * (S1 + S2)) / (2 * Z)) - (2.86 / (surface.k * (S2 - S1))) * Math.Log((S2 * (Z - S1)) / (S1 * (Z - S2)));
             return 1620 * surface.U * surface.Ef * Math.Exp(-1.0250 * Z * Math.Sqrt(phi));
         }
@@ -131,11 +133,11 @@ namespace IIS_Visual
             for (int i = 0; i < numPoints; i++)
             {
                 x = xL + (xH - xL) * _random.NextDouble();
-                y = -yMax + (yMax - (-yMax)) * _random.NextDouble();
+                y = -yMax + yMax * 2 * _random.NextDouble();
                 integral += CalculateCurrent(x, y, Zi, _surface); 
             }
 
-            double area = (xH - xL) * (yMax - (-yMax)); // площадь прямоугольника
+            double area = (xH - xL) * yMax * 2; // площадь прямоугольника
             integral *= area / numPoints; // вычисление приближенного значения интеграла
 
             return integral;
@@ -152,13 +154,14 @@ namespace IIS_Visual
                     switch (surfaceIndex)
                     {
                         case 1:
-                            double I1 = MonteCarloDoubleIntegral(zValues[_counterZ], -xMax, xMax);
+                            double I1 = MonteCarloDoubleIntegral(zValues[_counterZ], surface.surfaceDataPoints[surfaceIndex - 1].X, surface.surfaceDataPoints[surfaceIndex].X);
                             It += I1;
                             break;
                         case 2:
-                            if (_currentX <= _surface.surfaceDataPoints[surfaceIndex].X)
+                            if (_currentX <= _surface.surfaceDataPoints[surfaceIndex - 1].X)
                             {
-                                double I2 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), 0, _surface.h1);
+                                double I2 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2)
+                                    + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), 0, _surface.h1);
                                 It += I2;
                             }
                             break;
@@ -170,19 +173,22 @@ namespace IIS_Visual
                             }
                             else if (_currentX < _surface.surfaceDataPoints[surfaceIndex - 1].X)
                             {
-                                double I3 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), -xMax, xMax);
+                                double I3 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2)
+                                    + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), -xMax, xMax);
                                 It += I3;
                             }
                             else
                             {
-                                double I3 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex].X, 2)), -xMax, xMax);
+                                double I3 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2)
+                                    + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex].X, 2)), -xMax, xMax);
                                 It += I3;
                             }
                             break;
                         case 4:
-                            if (_currentX >= _surface.surfaceDataPoints[surfaceIndex].X)
+                            if (_currentX >= _surface.surfaceDataPoints[surfaceIndex - 1].X)
                             {
-                                double I4 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), 0, _surface.h1);
+                                double I4 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - surface.h1, 2)
+                                    + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex - 1].X, 2)), _surface.h1, 0);
                                 It += I4;
                             }
                             break;
@@ -191,15 +197,16 @@ namespace IIS_Visual
                             It += I5;
                             break;
                         case 6:
-                            if (_currentX < _surface.surfaceDataPoints[surfaceIndex].X)
-                            {
-                                double I6 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex].X, 2)), -xMax, xMax);
-                                It += I6;
-                            }
+                            double I6 = MonteCarloDoubleIntegral(Math.Sqrt(Math.Pow(zValues[_counterZ] - _surface.h2, 2) 
+                                + Math.Pow(_currentX - _surface.surfaceDataPoints[surfaceIndex].X, 2)), -xMax, xMax);
+                            It += I6;
                             break;
                         case 7:
-                            double I7 = MonteCarloDoubleIntegral(zValues[_counterZ] - _surface.h2, -xMax, xMax);
-                            It += I7;
+                            if (_currentX >= _surface.surfaceDataPoints[surfaceIndex - 1].X)
+                            {
+                                double I7 = MonteCarloDoubleIntegral(zValues[_counterZ] - _surface.h2, -xMax, xMax);
+                                It += I7;
+                            }
                             break;
                     }
                 }
