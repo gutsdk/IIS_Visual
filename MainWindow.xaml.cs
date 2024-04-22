@@ -18,16 +18,16 @@ namespace IIS_Visual
         private readonly DispatcherTimer _timer;
         private double _counterX = 0;
         private int _counterZ = 0;
-        public Surface _surface = new Surface(1);
-        public Needle _needle = new Needle(7, 5);
+        public Surface _surface = new Surface(1, 0.010);
+        public Needle _needle = new Needle(15, 5);
         public Random _random = new Random();
 
-        public double step = 0.1;
+        public double step = 1;
         public double xMax = 5;
         public double yMax = 5;
         public int numPoints = 5000;
         public int size = 100;
-        public double interval = 5;
+        public double interval = 0.05;
         public List<double> zValues;
         public double refCurrent;
         public ObservablePoint lastPoint;
@@ -39,7 +39,7 @@ namespace IIS_Visual
             Axis zAxis = new Axis
             {
                 Title = "Ось Z",
-                MaxValue = 20, 
+                MaxValue = _needle.Zo * 5, 
                 MinValue = 0,
                 Separator = new Separator { Step = 1 },
                 Position = AxisPosition.LeftBottom
@@ -70,9 +70,10 @@ namespace IIS_Visual
                 new LineSeries
                 {
                     Title = "Игла",
-                    PointGeometry = DefaultGeometries.Circle,
+                    PointGeometry = DefaultGeometries.None,
                     Values = new ChartValues<ObservablePoint> { },
-                    Fill = Brushes.Transparent
+                    Fill = Brushes.Transparent,
+                    LineSmoothness = 1
                 }
             };
 
@@ -85,7 +86,7 @@ namespace IIS_Visual
 
             seriesCollection[0].Values.AddRange(_surface.GetPoints());
 
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) }; // каждые X миллисекунд добавляется новое значение на график
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) }; // каждые X миллисекунд добавляется новое значение на график
             _timer.Tick += TimerTick;
         }
         protected override void OnContentRendered(EventArgs e)
@@ -95,26 +96,26 @@ namespace IIS_Visual
         }
         private void TimerTick(object sender, EventArgs e)
         {
-            if (_counterX > lastPoint.X)
-            {
-                _timer.Stop(); // останавливаем таймер
-            }
-            else
+            if (_counterX < lastPoint.X)
             {
                 double _currentJ = CalculateCurrents(_surface, _counterX);
-                while (Math.Abs(1.0 - _currentJ / refCurrent) * 100.0 >= interval) // n% диапазон доверия
+                while (Math.Abs(1.0 - _currentJ / refCurrent) >= interval) // n% диапазон доверия
                 {
                     if (_currentJ > refCurrent)
                     {
-                        zValues[_counterZ]= zValues[_counterZ] + _needle.step;
+                        zValues[_counterZ] = zValues[_counterZ] + _needle.step;
                     }
-                    else 
+                    else
                     {
                         zValues[_counterZ] = zValues[_counterZ] - _needle.step;
                     }
                     _currentJ = CalculateCurrents(_surface, _counterX);
                 }
                 (seriesCollection[1]).Values.Add(new ObservablePoint(_counterX, zValues[_counterZ]));
+            }
+            else
+            {
+                _timer.Stop(); // останавливаем таймер
             }
             zValues[_counterZ + 1] = zValues[_counterZ];
             _counterX += step; _counterZ++;

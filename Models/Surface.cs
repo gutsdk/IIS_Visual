@@ -19,14 +19,15 @@ namespace IIS_Visual.Models
         private Dictionary<int, ChartValues<ObservablePoint>> surfaces = new Dictionary<int, ChartValues<ObservablePoint>>();
         private ChartValues<ObservablePoint> points = new ChartValues<ObservablePoint>();
         public SolidColorBrush surfaceColor = Brushes.Gray;
-        public double U = 0.010;
+        public double U;
         public double Ef = 5.710;
         public double k = 1.0;
         public double phi0 = 4.50;
         public int d1 = 15, d2 = 5, h1 = 8, h2 = 5;
 
-        public Surface(double xStep)
+        public Surface(double xStep, double Ut)
         {
+            U = Ut;
             for (int i = 0; i < surfaceDataPoints.Count - 1; i++)
             {
                 surfaces.Add(i + 1, new ChartValues<ObservablePoint> { surfaceDataPoints[i], surfaceDataPoints[i + 1] });
